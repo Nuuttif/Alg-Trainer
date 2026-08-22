@@ -157,3 +157,14 @@ a:visited {
     background: black;
     align-items: center;
 }
+
+#simcube {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#cube3d canvas {
+    display: block;
+    border-radius: 4px;
+}

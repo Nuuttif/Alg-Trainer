@@ -7,6 +7,14 @@
     <link rel="icon" type="image/png" href="favicon-16x16.png" sizes="16x16" />
     <link rel="stylesheet" type="text/css" href="mobile.css">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./js/three.module.js",
+            "three/addons/": "./js/addons/"
+        }
+    }
+    </script>
 </head>
 
 <body>
@@ -28,6 +36,10 @@
             <form action="javascript:void(0);">
 
                 <input id="useVirtual" type="checkbox">Use Virtual Cube<br>
+                Virtual cube style: <select id="virtualCubeStyle">
+                    <option value="2d">2D projection</option>
+                    <option value="3d">3D cube</option>
+                </select><br>
                 <input id="hideTimer" type="checkbox">Hide timer<br>
                 <input id="showScramble" type="checkbox">Show Scramble<br>
                 <input id="realScrambles" type="checkbox">Use Real Scrambles<br>
@@ -198,6 +210,7 @@
                 <div class=column_middle>
                     <div id="simcube">
                         <canvas id="cube" width="250" height="300"></canvas>
+                        <div id="cube3d" style="display:none; width:300px; height:300px;"></div>
                     </div>
 
                     <div id="timer_div">
@@ -225,6 +238,7 @@
     <script src="js/alg_list.js"></script>
     <script src="js/keymaps.js"></script>
     <script src="js/RubiksCube.js"></script>
+    <script type="module" src="js/cube3d.js"></script>
 </body>
 
 </html>

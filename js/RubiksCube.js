@@ -67,6 +67,7 @@ var defaults = {"useVirtual":false,
                 "cubeType":"3x3",
                 "algsetpicker":document.getElementById("algsetpicker").options[0].value,
                 "useCustomColourScheme":false,
+                "virtualCubeStyle":"2d",
                 "customColourU":"white",
                 "customColourD":"yellow",
                 "customColourF":"green",
@@ -168,6 +169,7 @@ resetCustomColourScheme.addEventListener("click", function(){
 });
 
 setVirtualCube(document.getElementById("useVirtual").checked);
+setVirtualCubeStyle(localStorage.getItem("virtualCubeStyle") || "2d");
 createCheckboxes();
 drawCube(cube.cubestate);
 updateVisualCube("");
@@ -287,6 +289,37 @@ cubeType.addEventListener("change", function(){
     updateVisualCube("");
 });
 
+var virtualCubeStyle = document.getElementById("virtualCubeStyle");
+if (virtualCubeStyle){
+    virtualCubeStyle.addEventListener("change", function(){
+        localStorage.setItem("virtualCubeStyle", this.value);
+        setVirtualCubeStyle(this.value);
+        drawCube(cube.cubestate);
+    });
+}
+
+// Swap the controllable cube between the 2D canvas and the 3D renderer. Both
+// live inside #simcube; the 3D renderer lazily mounts the first time it's used.
+function setVirtualCubeStyle(style){
+    var canvas2d = document.getElementById("cube");
+    var cube3dContainer = document.getElementById("cube3d");
+    if (!canvas2d || !cube3dContainer) return;
+
+    if (style === "3d"){
+        canvas2d.style.display = "none";
+        cube3dContainer.style.display = "block";
+        if (window.cube3D){
+            window.cube3D.mount(cube3dContainer);
+            window.cube3D.show(true);
+            window.cube3D.resize();
+        }
+    } else {
+        canvas2d.style.display = "";
+        cube3dContainer.style.display = "none";
+        if (window.cube3D) window.cube3D.show(false);
+    }
+}
+
 var algsetpicker = document.getElementById("algsetpicker");
 algsetpicker.addEventListener("change", function(){
     createCheckboxes();
@@ -354,9 +387,30 @@ try{ // only for mobile
 } catch (error) {
 
 }
+// Resolve a cubestate sticker value (1..6) to a colour string, honouring the
+// custom colour scheme. Shared by the 2D canvas and the 3D cube (js/cube3d.js)
+// so both always agree on colours.
+function stickerColour(sticker) {
+    switch (sticker) {
+        case 1: return useCustomColourScheme.checked ? customColourU.value : defaults["customColourU"];
+        case 2: return useCustomColourScheme.checked ? customColourR.value : defaults["customColourR"];
+        case 3: return useCustomColourScheme.checked ? customColourF.value : defaults["customColourF"];
+        case 4: return useCustomColourScheme.checked ? customColourD.value : defaults["customColourD"];
+        case 5: return useCustomColourScheme.checked ? customColourL.value : defaults["customColourL"];
+        case 6: return useCustomColourScheme.checked ? customColourB.value : defaults["customColourB"];
+        default: return "#444444";
+    }
+}
+
+// Draw a single sticker inset within its grid cell so the black background
+// shows through as a gap between stickers, making the net readable.
+var STICKER_GAP = 2;
 function fillSticker(x, y, colour) {
+    var x0 = stickerSize * x + STICKER_GAP;
+    var y0 = stickerSize * y + STICKER_GAP;
+    var s = stickerSize - 2 * STICKER_GAP;
     ctx.fillStyle = colour;
-    ctx.fillRect(stickerSize * x, stickerSize * y, stickerSize, stickerSize);
+    ctx.fillRect(x0, y0, s, s);
 }
 
 function fillWithIndex(x, y, face, index, cubeArray, shouldBeCleared = false) {
@@ -382,57 +436,27 @@ function fillWithIndex(x, y, face, index, cubeArray, shouldBeCleared = false) {
     }
 
     var sticker = cubeArray[index];
-    var colour;
-    switch (sticker) {
-        case 1:
-            if (useCustomColourScheme.checked){
-                colour = customColourU.value;
-            } else {
-                colour = defaults["customColourU"];
-            }
-            break;
-        case 2:
-            if (useCustomColourScheme.checked){
-                colour = customColourR.value;
-            } else {
-                colour = defaults["customColourR"];
-            }
-            break;
-        case 3:
-            if (useCustomColourScheme.checked){
-                colour = customColourF.value;
-            } else {
-                colour = defaults["customColourF"];
-            }
-            break;
-        case 4:
-            if (useCustomColourScheme.checked){
-                colour = customColourD.value;
-            } else {
-                colour = defaults["customColourD"];
-            }
-            break;
-        case 5:
-            if (useCustomColourScheme.checked){
-                colour = customColourL.value;
-            } else {
-                colour = defaults["customColourL"];
-            }
-            break;
-        case 6:
-            if (useCustomColourScheme.checked){
-                colour = customColourB.value;
-            } else {
-                colour = defaults["customColourB"];
-            }
-            break;
-    }
-    if(shouldBeCleared){
-        colour = "black";
-    }
+    var colour = shouldBeCleared ? "black" : stickerColour(sticker);
     fillSticker(x, y, colour);
 }
+
+// Render the controllable cube. Dispatches to either the 2D canvas projection
+// or the 3D cube (js/cube3d.js) based on the selected virtual cube style. All
+// callers (doAlg, testAlg, reTestAlg, listeners) go through here, so keyboard
+// moves drive whichever view is active.
 function drawCube(cubeArray) {
+    var style = localStorage.getItem("virtualCubeStyle") || "2d";
+    if (style === "3d" && typeof window.drawCube3D === "function") {
+        drawCube3D(cubeArray);
+        return;
+    }
+    drawCube2D(cubeArray);
+}
+
+function drawCube2D(cubeArray) {
+    // Clear to black first so the inter-sticker gaps read as black on every frame.
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     //Just Draw Corners when Doing 2x2
     //TODO: Is this a good Idea? Is there a 2x2 draw thing already available for
     //RubiksCube.js?
@@ -1672,6 +1696,11 @@ function setVirtualCube(setting){
     var sim = document.getElementById("simcube");
     if (setting){
         sim.style.display = 'block';
+        // If the 3D style is active, the renderer needs a resize now that its
+        // container is visible (it may have had zero size while hidden).
+        if (localStorage.getItem("virtualCubeStyle") === "3d" && window.cube3D){
+            window.cube3D.resize();
+        }
     } else {
         sim.style.display = 'none';
         document.getElementById("timer").style.display = 'block'; //timer has to be shown when simulator cube is not used
